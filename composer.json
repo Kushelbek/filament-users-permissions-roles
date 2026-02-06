@@ -1,0 +1,79 @@
+{
+    "name": "kushelbek/filament-users-permissions-roles",
+    "description": "Complete user, role and permission management for Filament 5 with Spatie Laravel Permission",
+    "keywords": [
+        "filament",
+        "laravel",
+        "permissions",
+        "roles",
+        "spatie",
+        "admin",
+        "rbac"
+    ],
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Evgeniy Yalovoy",
+            "email": "evgeniy@y-ea.ru"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^12.0",
+        "spatie/laravel-permission": "^6.0",
+        "filament/filament": "^5.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "phpunit/phpunit": "^11.0",
+        "nunomaduro/collision": "^8.0",
+        "laravel/pint": "^1.13",
+        "larastan/larastan": "^2.9"
+    },
+    "suggest": {
+        "laravel/sanctum": "Required for API guard permissions",
+        "laravel/tinker": "For debugging with Tinker",
+        "barryvdh/laravel-debugbar": "For debugging"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kushelbek\\FilamentUsersPermissionsRoles\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kushelbek\\FilamentUsersPermissionsRoles\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Kushelbek\\FilamentUsersPermissionsRoles\\Providers\\FilamentUsersPermissionsServiceProvider"
+            ],
+            "aliases": {
+                "FilamentUsersPermissions": "Kushelbek\\FilamentUsersPermissionsRoles\\Facades\\FilamentUsersPermissions"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=filament-users-permissions-assets --ansi --force"
+        ],
+        "post-install-cmd": [
+            "@php artisan vendor:publish --tag=filament-users-permissions-assets --ansi --force"
+        ]
+    }
+}
