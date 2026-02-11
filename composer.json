@@ -38,7 +38,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Kushelbek\\FilamentUsersPermissionsRoles\\": "src/"
+            "Kushelbek\\FilamentUsersPermissionsRoles\\": "src/",
+            "Kushelbek\\FilamentUsersPermissionsRoles\\Database\\Seeders\\": "database/seeders/"
         }
     },
     "autoload-dev": {
@@ -49,10 +50,12 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Kushelbek\\FilamentUsersPermissionsRoles\\Providers\\FilamentUsersPermissionsServiceProvider"
+                "Kushelbek\\FilamentUsersPermissionsRoles\\Providers\\FilamentUsersPermissionsServiceProvider",
+                "Kushelbek\\FilamentUsersPermissionsRoles\\Providers\\EventServiceProvider"
             ],
             "aliases": {
-                "FilamentUsersPermissions": "Kushelbek\\FilamentUsersPermissionsRoles\\Facades\\FilamentUsersPermissions"
+                "FilamentUsersPermissions": "Kushelbek\\FilamentUsersPermissionsRoles\\Facades\\FilamentUsersPermissions",
+                "PermissionHelper": "Kushelbek\\FilamentUsersPermissionsRoles\\Helpers\\PermissionHelper"
             }
         }
     },

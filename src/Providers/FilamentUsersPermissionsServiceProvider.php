@@ -29,6 +29,9 @@ class FilamentUsersPermissionsServiceProvider extends ServiceProvider
     {
         $this->checkSpatieInstallation();
         
+        // Регистрируем свои модели
+        $this->registerModels();
+        
         if ($this->app->runningInConsole()) {
             $this->registerPublishing();
             $this->registerCommands();
@@ -36,8 +39,40 @@ class FilamentUsersPermissionsServiceProvider extends ServiceProvider
         
         $this->loadTranslationsFrom(__DIR__.'/../../lang', 'filament-users-permissions');
         $this->loadViewsFrom(__DIR__.'/../../resources/views', 'filament-users-permissions');
+        $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
         
         $this->registerFilamentResources();
+        $this->registerFilamentWidgets();
+        $this->registerEvents();
+    }
+
+    protected function registerModels(): void
+    {
+        // Регистрируем свои модели вместо моделей Spatie
+        $this->app->bind(
+            \Spatie\Permission\Models\Role::class,
+            \Kushelbek\FilamentUsersPermissionsRoles\Models\Role::class
+        );
+        
+        $this->app->bind(
+            \Spatie\Permission\Models\Permission::class,
+            \Kushelbek\FilamentUsersPermissionsRoles\Models\Permission::class
+        );
+    }
+
+    protected function registerFilamentWidgets(): void
+    {
+        Filament::serving(function () {
+            Filament::registerWidgets([
+                \Kushelbek\FilamentUsersPermissionsRoles\Filament\Widgets\PermissionStatsWidget::class,
+            ]);
+        });
+    }
+
+    protected function registerEvents(): void
+    {
+        // Регистрируем EventServiceProvider
+        $this->app->register(EventServiceProvider::class);
     }
     
     /**
