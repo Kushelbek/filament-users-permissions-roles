@@ -1,19 +1,18 @@
-<?
+<?php
+
 namespace Kushelbek\FilamentUsersPermissionsRoles\Commands;
 
 use Illuminate\Console\Command;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\File;
 
 class InstallCommand extends Command
 {
     protected $signature = 'filament-users-permissions:install 
-                            {--fresh : Run fresh migrations}
                             {--seed : Seed default roles and permissions}
-                            {--force : Force the operation}
-                            {--no-interaction : Do not ask any interactive questions}';
+                            {--force : Force publish package resources}';
     
     protected $description = 'Install filament users permissions and roles package';
     
@@ -21,118 +20,109 @@ class InstallCommand extends Command
     {
         $this->info('🚀 Installing Kushelbek Filament Users Permissions & Roles...');
         
-        // Шаг 1: Проверяем установлен ли Spatie
-        $this->checkSpatieInstallation();
-        
-        // Шаг 2: Публикуем зависимости Spatie
-        $this->publishSpatieResources();
-        
-        // Шаг 3: Публикуем ресурсы пакета
-        $this->publishPackageResources();
-        
-        // Шаг 4: Запускаем миграции
-        $this->runMigrations();
-        
-        // Шаг 5: Сидим данные
-        if ($this->option('seed') || $this->confirm('Seed default roles and permissions?', true)) {
-            $this->seedDefaultRolesAndPermissions();
+        // Шаг 1: Проверяем, установлен ли Spatie Laravel Permission
+        if (!$this->checkSpatieInstalled()) {
+            return self::FAILURE;
         }
         
-        // Шаг 6: Публикуем Filament ресурсы если нужно
-        $this->publishFilamentResources();
+        // Шаг 2: Проверяем, существует ли таблица roles
+        if (!$this->checkRolesTableExists()) {
+            return self::FAILURE;
+        }
+        
+        // Шаг 3: Публикуем ресурсы нашего пакета (конфиг, миграции, переводы)
+        $this->publishPackageResources();
+        
+        // Шаг 4: Запускаем наши миграции (дополнительные поля, teams)
+        $this->runPackageMigrations();
+        
+        // Шаг 5: Сидирование
+        if ($this->option('seed')) {
+            $this->seedDefaultRolesAndPermissions();
+        }
         
         $this->showSuccessMessage();
         
         return self::SUCCESS;
     }
     
-    protected function checkSpatieInstallation(): void
+    protected function checkSpatieInstalled(): bool
     {
-        if (!class_exists(\Spatie\Permission\PermissionServiceProvider::class)) {
-            $this->error('❌ Spatie Laravel Permission is not installed.');
-            
-            if ($this->option('no-interaction') || $this->confirm('Install spatie/laravel-permission now?', true)) {
-                $this->info('Installing spatie/laravel-permission...');
-                
-                // Пытаемся установить через composer
-                exec('composer require spatie/laravel-permission', $output, $returnCode);
-                
-                if ($returnCode !== 0) {
-                    $this->error('Failed to install spatie/laravel-permission');
-                    $this->line('Please install it manually: composer require spatie/laravel-permission');
-                    exit(1);
-                }
-                
-                $this->info('✅ spatie/laravel-permission installed successfully.');
-            } else {
-                $this->line('Please install it manually: composer require spatie/laravel-permission');
-                exit(1);
-            }
+        if (class_exists(\Spatie\Permission\PermissionServiceProvider::class)) {
+            $this->info('✅ Spatie Laravel Permission is installed.');
+            return true;
         }
+        
+        $this->error('❌ Spatie Laravel Permission is NOT installed.');
+        $this->line('Please install it first:');
+        $this->line('  composer require spatie/laravel-permission');
+        $this->newLine();
+        $this->line('After that, run this command again.');
+        
+        return false;
     }
     
-    protected function publishSpatieResources(): void
+    protected function checkRolesTableExists(): bool
     {
-        $this->info('📦 Publishing Spatie resources...');
-        
-        // Публикуем миграции Spatie если их нет
-        $spatieMigrationsExist = count(glob(database_path('migrations/*_create_permission_tables.php'))) > 0;
-        
-        if (!$spatieMigrationsExist || $this->option('force')) {
-            $this->call('vendor:publish', [
-                '--provider' => 'Spatie\Permission\PermissionServiceProvider',
-                '--tag' => 'migrations',
-                '--force' => $this->option('force'),
-            ]);
-            $this->info('✅ Spatie migrations published.');
-        } else {
-            $this->info('⏩ Spatie migrations already exist, skipping.');
+        if (Schema::hasTable('roles')) {
+            $this->info('✅ Table "roles" exists.');
+            return true;
         }
         
-        // Публикуем конфиг Spatie если его нет
-        if (!File::exists(config_path('permission.php')) || $this->option('force')) {
-            $this->call('vendor:publish', [
-                '--provider' => 'Spatie\Permission\PermissionServiceProvider',
-                '--tag' => 'config',
-                '--force' => $this->option('force'),
-            ]);
-            $this->info('✅ Spatie config published.');
-        } else {
-            $this->info('⏩ Spatie config already exists, skipping.');
-        }
+        $this->error('❌ Table "roles" does not exist.');
+        $this->line('Please publish and run Spatie migrations first:');
+        $this->line('  1. php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider" --tag=migrations');
+        $this->line('  2. php artisan migrate');
+        $this->newLine();
+        $this->line('Then run this command again.');
+        
+        return false;
     }
     
     protected function publishPackageResources(): void
     {
         $this->info('📦 Publishing package resources...');
         
-        $tags = ['config', 'migrations', 'translations', 'views'];
+        // Публикуем конфиг
+        $this->call('vendor:publish', [
+            '--tag' => 'filament-users-permissions-config',
+            '--force' => $this->option('force'),
+        ]);
         
-        foreach ($tags as $tag) {
-            $this->call('vendor:publish', [
-                '--tag' => "filament-users-permissions-{$tag}",
-                '--force' => $this->option('force'),
-            ]);
-            $this->info("✅ Package {$tag} published.");
-        }
+        // Публикуем миграции
+        $this->call('vendor:publish', [
+            '--tag' => 'filament-users-permissions-migrations',
+            '--force' => $this->option('force'),
+        ]);
+        
+        // Публикуем переводы
+        $this->call('vendor:publish', [
+            '--tag' => 'filament-users-permissions-translations',
+            '--force' => $this->option('force'),
+        ]);
+        
+        $this->info('✅ Package resources published.');
     }
     
-    protected function runMigrations(): void
+    protected function runPackageMigrations(): void
     {
-        $this->info('🔄 Running migrations...');
+        $this->info('🔄 Running package migrations...');
         
-        if ($this->option('fresh')) {
-            $this->call('migrate:fresh');
-        } else {
-            $this->call('migrate');
-        }
+        // Запускаем только миграции, добавленные нашим пакетом
+        // (они уже опубликованы в database/migrations)
+        $this->call('migrate');
         
-        $this->info('✅ Migrations completed.');
+        $this->info('✅ Package migrations completed.');
     }
     
     protected function seedDefaultRolesAndPermissions(): void
     {
         $this->info('🌱 Seeding default roles and permissions...');
+        
+        if (!Schema::hasTable('roles')) {
+            $this->error('❌ Table "roles" does not exist. Cannot seed.');
+            return;
+        }
         
         $config = config('filament-users-permissions.default_roles', []);
         
@@ -161,28 +151,15 @@ class InstallCommand extends Command
         $this->info('✅ Default roles and permissions created.');
     }
     
-    protected function publishFilamentResources(): void
-    {
-        $this->info('🎨 Publishing Filament resources...');
-        
-        // Публикуем Filament ресурсы
-        $this->call('filament:upgrade');
-        
-        $this->info('✅ Filament resources published.');
-    }
-    
     protected function showSuccessMessage(): void
     {
-        $this->info('');
+        $this->newLine();
         $this->info('🎉 Package installed successfully!');
-        $this->info('');
+        $this->newLine();
         $this->info('📋 Next steps:');
-        $this->line('  1. Add \Kushelbek\FilamentUsersPermissionsRoles\Traits\HasRoleManagement trait to your UserResource');
+        $this->line('  1. Add \\Kushelbek\\FilamentUsersPermissionsRoles\\Traits\\HasRoleManagement trait to your UserResource');
         $this->line('  2. Customize configuration in config/filament-users-permissions.php');
         $this->line('  3. Run php artisan filament-users-permissions:sync to sync existing permissions');
-        $this->line('  4. Clear cache: php artisan optimize:clear');
-        $this->info('');
-        $this->info('📚 Documentation: https://github.com/kushelbek/filament-users-permissions-roles');
-        $this->info('');
+        $this->newLine();
     }
 }

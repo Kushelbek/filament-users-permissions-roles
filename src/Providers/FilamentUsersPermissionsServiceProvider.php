@@ -1,23 +1,21 @@
-<?
+<?php
 
 namespace Kushelbek\FilamentUsersPermissionsRoles\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Spatie\Permission\PermissionServiceProvider;
 use Filament\Facades\Filament;
 use Kushelbek\FilamentUsersPermissionsRoles\Commands\InstallCommand;
 use Kushelbek\FilamentUsersPermissionsRoles\Commands\SyncPermissionsCommand;
+use Kushelbek\FilamentUsersPermissionsRoles\Commands\PublishCommand;
 
 class FilamentUsersPermissionsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Регистрируем Spatie Permission Service Provider если он еще не зарегистрирован
-        if (!class_exists(\Spatie\Permission\PermissionServiceProvider::class)) {
-            throw new \Exception('Spatie Laravel Permission package is required. Please install it first.');
+        // Регистрируем Spatie Permission ServiceProvider только если он установлен
+        if (class_exists(\Spatie\Permission\PermissionServiceProvider::class)) {
+            $this->app->register(\Spatie\Permission\PermissionServiceProvider::class);
         }
-        
-        $this->app->register(PermissionServiceProvider::class);
         
         $this->mergeConfigFrom(
             __DIR__.'/../../config/filament-users-permissions.php', 
@@ -27,75 +25,21 @@ class FilamentUsersPermissionsServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->checkSpatieInstallation();
-        
-        // Регистрируем свои модели
-        $this->registerModels();
-        
         if ($this->app->runningInConsole()) {
             $this->registerPublishing();
             $this->registerCommands();
         }
         
         $this->loadTranslationsFrom(__DIR__.'/../../lang', 'filament-users-permissions');
-        $this->loadViewsFrom(__DIR__.'/../../resources/views', 'filament-users-permissions');
         $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
         
         $this->registerFilamentResources();
         $this->registerFilamentWidgets();
-        $this->registerEvents();
-    }
-
-    protected function registerModels(): void
-    {
-        // Регистрируем свои модели вместо моделей Spatie
-        $this->app->bind(
-            \Spatie\Permission\Models\Role::class,
-            \Kushelbek\FilamentUsersPermissionsRoles\Models\Role::class
-        );
         
-        $this->app->bind(
-            \Spatie\Permission\Models\Permission::class,
-            \Kushelbek\FilamentUsersPermissionsRoles\Models\Permission::class
-        );
-    }
-
-    protected function registerFilamentWidgets(): void
-    {
-        Filament::serving(function () {
-            Filament::registerWidgets([
-                \Kushelbek\FilamentUsersPermissionsRoles\Filament\Widgets\PermissionStatsWidget::class,
-            ]);
-        });
-    }
-
-    protected function registerEvents(): void
-    {
-        // Регистрируем EventServiceProvider
-        $this->app->register(EventServiceProvider::class);
+        // Регистрация событий временно отключена
+        // $this->registerEvents();
     }
     
-    /**
-     * Проверяем установлен ли Spatie Laravel Permission
-     */
-    protected function checkSpatieInstallation(): void
-    {
-        if (!$this->app->providerIsLoaded(PermissionServiceProvider::class)) {
-            if ($this->app->runningInConsole()) {
-                $this->info('📦 Installing required dependency: spatie/laravel-permission');
-                $this->call('composer require spatie/laravel-permission');
-            } else {
-                throw new \RuntimeException(
-                    'Spatie Laravel Permission is not installed. ' .
-                    'Please run: composer require spatie/laravel-permission'
-                );
-            }
-        }
-    }
-    
-    /**
-     * Регистрируем команды публикации
-     */
     protected function registerPublishing(): void
     {
         $this->publishes([
@@ -109,37 +53,43 @@ class FilamentUsersPermissionsServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../../lang' => lang_path('vendor/filament-users-permissions'),
         ], 'filament-users-permissions-translations');
-        
-        $this->publishes([
-            __DIR__.'/../../resources/views' => resource_path('views/vendor/filament-users-permissions'),
-        ], 'filament-users-permissions-views');
-        
-        $this->publishes([
-            __DIR__.'/../../stubs' => base_path('stubs/filament-users-permissions'),
-        ], 'filament-users-permissions-stubs');
     }
     
-    /**
-     * Регистрируем Artisan команды
-     */
     protected function registerCommands(): void
     {
         $this->commands([
             InstallCommand::class,
             SyncPermissionsCommand::class,
+            PublishCommand::class,
         ]);
     }
     
-    /**
-     * Регистрируем Filament ресурсы
-     */
     protected function registerFilamentResources(): void
     {
-        Filament::serving(function () {
-            Filament::registerResources([
-                \Kushelbek\FilamentUsersPermissionsRoles\Filament\Resources\RoleResource::class,
-                \Kushelbek\FilamentUsersPermissionsRoles\Filament\Resources\PermissionResource::class,
-            ]);
-        });
+        if (class_exists(Filament::class)) {
+            Filament::serving(function () {
+                Filament::registerResources([
+                    \Kushelbek\FilamentUsersPermissionsRoles\Filament\Resources\RoleResource::class,
+                    \Kushelbek\FilamentUsersPermissionsRoles\Filament\Resources\PermissionResource::class,
+                ]);
+            });
+        }
+    }
+    
+    protected function registerFilamentWidgets(): void
+    {
+        if (class_exists(Filament::class)) {
+            Filament::serving(function () {
+                Filament::registerWidgets([
+                    \Kushelbek\FilamentUsersPermissionsRoles\Filament\Widgets\PermissionStatsWidget::class,
+                ]);
+            });
+        }
+    }
+    
+    protected function registerEvents(): void
+    {
+        // Временно отключено
+        // $this->app->register(EventServiceProvider::class);
     }
 }
