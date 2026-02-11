@@ -1,6 +1,6 @@
 {
     "name": "kushelbek/filament-users-permissions-roles",
-    "version": "dev-main",
+    "version": "1.0.0",
     "description": "Complete user, role and permission management for Filament 5 with Spatie Laravel Permission",
     "keywords": [
         "filament",
